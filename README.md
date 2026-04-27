@@ -110,6 +110,48 @@ Run the same `.exe` from an Azure VM in the EPA cluster region with the same
 config for a parallel external vantage. Comparing the two timelines makes it
 clear which segment of the path each symptom lives on.
 
+## Releases & verifying the binary
+
+Each tagged release at
+[**Releases**](https://github.com/ZaherButt/EPA-Connectivity-Monitor/releases)
+attaches three files, all built by [`.github/workflows/release.yml`](.github/workflows/release.yml)
+from the tagged commit on this repository:
+
+| File                              | Purpose                                                  |
+|-----------------------------------|----------------------------------------------------------|
+| `epa-connectivity-monitor.exe`    | The Windows amd64 binary (no installer, just copy & run) |
+| `SHA256SUMS.txt`                  | SHA-256 hash of the binary                               |
+| `sbom.txt`                        | `go version -m` output: every Go module + version baked in |
+
+**Verify on Windows (cmd):**
+
+```cmd
+certutil -hashfile epa-connectivity-monitor.exe SHA256
+type SHA256SUMS.txt
+```
+
+**Verify on macOS / Linux:**
+
+```sh
+sha256sum -c SHA256SUMS.txt
+```
+
+**Reproduce the build yourself** (any OS with Go installed):
+
+```sh
+git clone https://github.com/ZaherButt/EPA-Connectivity-Monitor.git
+cd EPA-Connectivity-Monitor
+git checkout v0.1.0   # or whichever tag you're verifying
+GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -buildid=" -o epa-connectivity-monitor.exe .
+sha256sum epa-connectivity-monitor.exe
+```
+
+Match the hash in `SHA256SUMS.txt` from the same release tag → the published
+binary was built from this exact source tree, with no hidden additions.
+
+See [`SECURITY.md`](SECURITY.md) for the full trust statement (no telemetry,
+what's logged, required permissions, data handling).
+
 ## Build (cross-compile from macOS / Linux)
 
 ```
