@@ -1,0 +1,126 @@
+# EPA Connectivity Monitor configuration
+# log_file: optional. If omitted, defaults to <exe folder>\epa-connectivity-monitor.log
+# Relative paths are resolved against the executable's folder.
+# Examples:
+#   log_file: 'epa-connectivity-monitor.log'
+#   log_file: 'logs\epa-connectivity-monitor.log'
+#   log_file: 'C:\ProgramData\EpaConnectivityMonitor\epa-connectivity-monitor.log'
+log_max_size_mb: 500
+log_max_backups: 7
+log_max_age_days: 7
+
+# Default values applied when a check omits its own
+default_interval: 60s
+default_timeout: 5s
+ping_count: 3
+
+checks:
+  - name: "default-gateway"
+    type: "gateway_ping"      # auto-discovers the local default gateway
+    interval: 30s
+
+  - name: "internet-ping-quad9"
+    type: "internet_ping"
+    target: "9.9.9.9"
+    interval: 60s
+
+  # ---- 3rd-party internet reachability via DNS lookup ----
+  - name: "dns-microsoft-via-cloudflare"
+    type: "dns_a"
+    target: "microsoft.com"
+    resolver: "1.1.1.1"
+    interval: 60s
+
+  - name: "dns-microsoft-via-google"
+    type: "dns_a"
+    target: "microsoft.com"
+    resolver: "8.8.8.8"
+    interval: 60s
+
+  - name: "https-microsoft"
+    type: "tcp443"
+    target: "www.microsoft.com"
+    interval: 60s
+
+  # ---- Entra Private Access — connector data path (Service Bus Relay, TCP 443) ----
+  # The four hosts below are the EUR1 cluster (Frankfurt / Paris / Dublin / Amsterdam).
+  # If your connector binds to a different cluster (e.g. amer1, apac1), replace these
+  # hostnames. You can find the live list in the connector trace logs under
+  # 'SignalingListenerEndpoints', or get the regional cluster names from the GSA PG.
+  - name: "epa-sb-eur1-dwc2"          # Germany West Central
+    type: "tcp443"
+    target: "cwap-eur1-dwc2.servicebus.windows.net"
+    interval: 60s
+
+  - name: "epa-sb-eur1-frc2"          # France Central
+    type: "tcp443"
+    target: "cwap-eur1-frc2.servicebus.windows.net"
+    interval: 60s
+
+  - name: "epa-sb-eur1-neur2"         # North Europe (Dublin)
+    type: "tcp443"
+    target: "cwap-eur1-neur2.servicebus.windows.net"
+    interval: 60s
+
+  - name: "epa-sb-eur1-weur2"         # West Europe (Amsterdam)
+    type: "tcp443"
+    target: "cwap-eur1-weur2.servicebus.windows.net"
+    interval: 60s
+
+  # ---- Entra Private Access — control plane / bootstrap ----
+  - name: "msft-login"
+    type: "tcp443"
+    target: "login.microsoftonline.com"
+    interval: 120s
+
+  # ===========================================================
+  # Diagnostic checks — for proving root-cause when EPA is slow
+  # ===========================================================
+
+  # TLS-handshake split: separates TCP-connect time from TLS-handshake time.
+  # If TCP is fast but TLS is slow, that's a smoking gun for a TLS-inspecting
+  # middlebox (customer firewall/proxy) on the path.
+  - name: "tls-epa-sb-eur1-weur2"
+    type: "tls"
+    target: "cwap-eur1-weur2.servicebus.windows.net"
+    port: 443
+    interval: 60s
+
+  # Long-lived TLS hold-open: opens a connection and holds it idle for hold_for.
+  # Classifies how the connection dies (peer_rst | peer_fin | ok_full_hold).
+  # If a stateful firewall idle-timeout is killing EPA Service Bus relay
+  # sessions, this catches it red-handed.
+  # Important: interval MUST be > hold_for (recommend hold_for + 60s).
+  - name: "holdopen-epa-sb-eur1-weur2"
+    type: "holdopen"
+    target: "cwap-eur1-weur2.servicebus.windows.net"
+    port: 443
+    hold_for: 4m
+    tcp_keepalive: false   # set true to test whether TCP keepalives keep session alive
+    interval: 5m
+
+  # Local host health snapshot: CPU, memory, TCP established-count, retransmit
+  # rate, RST send/recv rate. Pre-empts "your connector is overloaded" debate.
+  - name: "host-health"
+    type: "host_health"
+    interval: 60s
+
+  # Tail the connector's own trace log and report any new ERROR/WARN lines.
+  # Adjust log_path to point at your connector log file. Default pattern is
+  # "(?i)error|warn|fail|exception|disconnect"; override with `pattern:`.
+  - name: "connector-log-watch"
+    type: "log_tail"
+    log_path: "C:\\Program Files\\Microsoft Entra Private Network Connector\\Logs\\connector_logs.log"
+    pattern: "(?i)error|disconnect|reset|timeout"
+    interval: 60s
+
+  # Auto-tracert on failure: add `trace_on_failure: true` to ANY check.
+  # When the check fails, tracert.exe is run against the target and its hop-by-hop
+  # output is included in the JSON-Lines record's `extra.tracert` array.
+  # Example - re-running an existing tcp443 with diagnostics enabled:
+  # - name: "epa-sb-eur1-weur2-with-trace"
+  #   type: "tcp443"
+  #   target: "cwap-eur1-weur2.servicebus.windows.net"
+  #   trace_on_failure: true
+  #   max_hops: 25
+  #   interval: 60s

@@ -1,0 +1,47 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: false
+
+      - name: Build Windows amd64 binary (reproducible flags)
+        run: |
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 \
+            go build -trimpath -ldflags "-s -w -buildid=" \
+            -o dist/epa-connectivity-monitor.exe .
+
+      - name: Generate SHA256
+        working-directory: dist
+        run: |
+          sha256sum epa-connectivity-monitor.exe | tee SHA256SUMS.txt
+
+      - name: Generate SBOM (go module list baked into binary)
+        working-directory: dist
+        run: |
+          go version -m epa-connectivity-monitor.exe | tee sbom.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/epa-connectivity-monitor.exe
+            dist/SHA256SUMS.txt
+            dist/sbom.txt
+          generate_release_notes: true
+          fail_on_unmatched_files: true
