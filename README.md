@@ -120,6 +120,7 @@ from the tagged commit on this repository:
 | File                              | Purpose                                                  |
 |-----------------------------------|----------------------------------------------------------|
 | `epa-connectivity-monitor.exe`    | The Windows amd64 binary (no installer, just copy & run) |
+| `config.example.yaml`             | Example configuration — rename to `config.yaml` and edit |
 | `SHA256SUMS.txt`                  | SHA-256 hash of the binary                               |
 | `sbom.txt`                        | `go version -m` output: every Go module + version baked in |
 

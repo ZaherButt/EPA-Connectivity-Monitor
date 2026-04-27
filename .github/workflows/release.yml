@@ -36,6 +36,9 @@ jobs:
         run: |
           go version -m epa-connectivity-monitor.exe | tee sbom.txt
 
+      - name: Stage example config
+        run: cp config.example.yaml dist/config.example.yaml
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -43,5 +46,6 @@ jobs:
             dist/epa-connectivity-monitor.exe
             dist/SHA256SUMS.txt
             dist/sbom.txt
+            dist/config.example.yaml
           generate_release_notes: true
           fail_on_unmatched_files: true
