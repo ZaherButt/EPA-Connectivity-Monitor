@@ -185,6 +185,21 @@ epa-connectivity-monitor.exe --print-config                  # validate config
 
 See `config.example.yaml`. Durations use Go syntax: `30s`, `1m`, `5m`, `1h`.
 
+### Tagging checks
+
+Every check accepts an optional `tags:` list — free-form `key:value` strings used
+to group results in downstream analysis (no impact on check semantics).
+Conventions used in the shipped configs:
+
+- `region:{eu|nam|asia|aus|japan|global|local|internet|3rdparty}`
+- `role:{signaling|signaling-tls|bootstrap|trust-renewal|pki-crl|pki-ocsp|ctl|update|auth|gateway|sanity|host-health|log-watch}`
+- `cluster:{eur1|nam1|asia1|aus1|japan}` and `azure-region:<azureregion>` where applicable
+- `provider:{azure-sb|msappproxy|digicert|microsoft|3rdparty}`
+
+Tags appear as a `[k:v k:v ...]` suffix on the console line and as a `tags`
+array on each JSON Lines record (omitted when empty, so older log consumers are
+unaffected).
+
 ## Log format
 
 JSON Lines, one record per check execution. Examples:

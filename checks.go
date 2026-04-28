@@ -16,6 +16,7 @@ func runCheck(ctx context.Context, c CheckConfig, pingCount int) Result {
 		Check:  c.Name,
 		Type:   c.Type,
 		Target: c.Target,
+		Tags:   c.Tags,
 	}
 	switch c.Type {
 	case "gateway_ping":

@@ -6,6 +6,8 @@
 *.dylib
 dist/
 build/
+/epa-connectivity-monitor
+/epa-connectivity-monitor-*
 
 # Test/coverage
 *.out

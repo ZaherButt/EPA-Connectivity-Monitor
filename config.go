@@ -51,6 +51,11 @@ type CheckConfig struct {
 	MaxHops        int           `yaml:"max_hops"`         // tracert max hops (default 20)
 	LogPath        string        `yaml:"log_path"`         // log_tail: file path
 	Pattern        string        `yaml:"pattern"`          // log_tail: regex (default "(?i)error|warn|fail")
+
+	// Free-form labels for grouping/filtering downstream (e.g. region:eu, role:signaling,
+	// cluster:eur1, provider:azure-sb). No semantic meaning to the runner — purely metadata
+	// passed through to the JSON log and the console line.
+	Tags []string `yaml:"tags"`
 }
 
 func LoadConfig(path string) (*Config, error) {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ type Result struct {
 	Detail     string         `json:"detail,omitempty"`
 	Error      string         `json:"error,omitempty"`
 	Extra      map[string]any `json:"extra,omitempty"`
+	Tags       []string       `json:"tags,omitempty"`
 }
 
 type Logger struct {
@@ -87,5 +89,9 @@ func (l *Logger) Write(r Result) {
 			status = ansiRed + status + ansiReset
 		}
 	}
-	l.console.Printf("%s %s (%s -> %s) %s", status, r.Check, r.Type, r.Target, r.Detail)
+	tagSuffix := ""
+	if len(r.Tags) > 0 {
+		tagSuffix = " [" + strings.Join(r.Tags, " ") + "]"
+	}
+	l.console.Printf("%s %s (%s -> %s) %s%s", status, r.Check, r.Type, r.Target, r.Detail, tagSuffix)
 }

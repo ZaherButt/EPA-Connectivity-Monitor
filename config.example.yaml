@@ -18,11 +18,13 @@ checks:
   - name: "default-gateway"
     type: "gateway_ping"      # auto-discovers the local default gateway
     interval: 30s
+    tags: ["role:gateway", "region:local"]
 
   - name: "internet-ping-quad9"
     type: "internet_ping"
     target: "9.9.9.9"
     interval: 60s
+    tags: ["role:sanity", "region:internet", "provider:3rdparty"]
 
   # ---- 3rd-party internet reachability via DNS lookup ----
   - name: "dns-microsoft-via-cloudflare"
@@ -30,48 +32,230 @@ checks:
     target: "microsoft.com"
     resolver: "1.1.1.1"
     interval: 60s
+    tags: ["role:sanity-dns", "resolver:cloudflare", "provider:3rdparty"]
 
   - name: "dns-microsoft-via-google"
     type: "dns_a"
     target: "microsoft.com"
     resolver: "8.8.8.8"
     interval: 60s
+    tags: ["role:sanity-dns", "resolver:google", "provider:3rdparty"]
 
   - name: "https-microsoft"
     type: "tcp443"
     target: "www.microsoft.com"
     interval: 60s
+    tags: ["role:sanity", "provider:microsoft"]
 
   # ---- Entra Private Access — connector data path (Service Bus Relay, TCP 443) ----
-  # The four hosts below are the EUR1 cluster (Frankfurt / Paris / Dublin / Amsterdam).
-  # If your connector binds to a different cluster (e.g. amer1, apac1), replace these
-  # hostnames. You can find the live list in the connector trace logs under
-  # 'SignalingListenerEndpoints', or get the regional cluster names from the GSA PG.
+  # By default we poll Service Bus signaling clusters across every region we have
+  # observed connectors bind to. This gives a like-for-like latency comparison so
+  # mis-regioned connectors stand out on sight. Hostnames are taken from connector
+  # traces ('SignalingListenerEndpoints'); add or prune as new clusters are seen.
   - name: "epa-sb-eur1-dwc2"          # Germany West Central
     type: "tcp443"
     target: "cwap-eur1-dwc2.servicebus.windows.net"
     interval: 60s
+    tags: ["role:signaling", "region:eu", "cluster:eur1", "azure-region:germanywestcentral", "provider:azure-sb"]
 
   - name: "epa-sb-eur1-frc2"          # France Central
     type: "tcp443"
     target: "cwap-eur1-frc2.servicebus.windows.net"
     interval: 60s
+    tags: ["role:signaling", "region:eu", "cluster:eur1", "azure-region:francecentral", "provider:azure-sb"]
 
   - name: "epa-sb-eur1-neur2"         # North Europe (Dublin)
     type: "tcp443"
     target: "cwap-eur1-neur2.servicebus.windows.net"
     interval: 60s
+    tags: ["role:signaling", "region:eu", "cluster:eur1", "azure-region:northeurope", "provider:azure-sb"]
 
   - name: "epa-sb-eur1-weur2"         # West Europe (Amsterdam)
     type: "tcp443"
     target: "cwap-eur1-weur2.servicebus.windows.net"
     interval: 60s
+    tags: ["role:signaling", "region:eu", "cluster:eur1", "azure-region:westeurope", "provider:azure-sb"]
+
+  # NAM1 Service Bus clusters (observed in connector traces; add as more appear)
+  - name: "epa-sb-nam1-eus2"          # East US
+    type: "tcp443"
+    target: "cwap-nam1-eus2.servicebus.windows.net"
+    interval: 60s
+    tags: ["role:signaling", "region:nam", "cluster:nam1", "azure-region:eastus2", "provider:azure-sb"]
+
+  - name: "epa-sb-nam1-cus2"          # Central US
+    type: "tcp443"
+    target: "cwap-nam1-cus2.servicebus.windows.net"
+    interval: 60s
+    tags: ["role:signaling", "region:nam", "cluster:nam1", "azure-region:centralus", "provider:azure-sb"]
+
+  # ASIA1 Service Bus clusters
+  - name: "epa-sb-asia1-seas3"        # South-East Asia (Singapore)
+    type: "tcp443"
+    target: "cwap-asia1-seas3.servicebus.windows.net"
+    interval: 60s
+    tags: ["role:signaling", "region:asia", "cluster:asia1", "azure-region:southeastasia", "provider:azure-sb"]
+
+  - name: "epa-sb-asia1-ejpn3"        # East Japan (Tokyo)
+    type: "tcp443"
+    target: "cwap-asia1-ejpn3.servicebus.windows.net"
+    interval: 60s
+    tags: ["role:signaling", "region:asia", "cluster:asia1", "azure-region:japaneast", "provider:azure-sb"]
+
+  # TLS-handshake split for the same NAM1/ASIA1 clusters — same diagnostic value
+  # as the EUR1 tls-* checks below, but for cross-region comparison.
+  - name: "tls-epa-sb-nam1-eus2"
+    type: "tls"
+    target: "cwap-nam1-eus2.servicebus.windows.net"
+    interval: 60s
+    trace_on_failure: true
+    tags: ["role:signaling-tls", "region:nam", "cluster:nam1", "azure-region:eastus2", "provider:azure-sb"]
+
+  - name: "tls-epa-sb-nam1-cus2"
+    type: "tls"
+    target: "cwap-nam1-cus2.servicebus.windows.net"
+    interval: 60s
+    trace_on_failure: true
+    tags: ["role:signaling-tls", "region:nam", "cluster:nam1", "azure-region:centralus", "provider:azure-sb"]
+
+  - name: "tls-epa-sb-asia1-seas3"
+    type: "tls"
+    target: "cwap-asia1-seas3.servicebus.windows.net"
+    interval: 60s
+    trace_on_failure: true
+    tags: ["role:signaling-tls", "region:asia", "cluster:asia1", "azure-region:southeastasia", "provider:azure-sb"]
+
+  - name: "tls-epa-sb-asia1-ejpn3"
+    type: "tls"
+    target: "cwap-asia1-ejpn3.servicebus.windows.net"
+    interval: 60s
+    trace_on_failure: true
+    tags: ["role:signaling-tls", "region:asia", "cluster:asia1", "azure-region:japaneast", "provider:azure-sb"]
+
+  # ---- EPA bootstrap (control plane) — generic + regional aliases ----
+  # Generic resolves to whichever region the cloud has the tenant pinned to.
+  # Regional aliases let us see whether one regional bootstrap is degraded.
+  - name: "epa-bootstrap-generic"
+    type: "tcp443"
+    target: "bootstrap.msappproxy.net"
+    interval: 120s
+    tags: ["role:bootstrap", "region:global", "provider:msappproxy"]
+
+  - name: "epa-bootstrap-nam"
+    type: "tcp443"
+    target: "nam.bootstrap.msappproxy.net"
+    interval: 120s
+    tags: ["role:bootstrap", "region:nam", "provider:msappproxy"]
+
+  - name: "epa-bootstrap-eur"
+    type: "tcp443"
+    target: "eur.bootstrap.msappproxy.net"
+    interval: 120s
+    tags: ["role:bootstrap", "region:eu", "provider:msappproxy"]
+
+  - name: "epa-bootstrap-asia"
+    type: "tcp443"
+    target: "asia.bootstrap.msappproxy.net"
+    interval: 120s
+    tags: ["role:bootstrap", "region:asia", "provider:msappproxy"]
+
+  # ---- EPA trust renewal hosts (per-region) ----
+  - name: "epa-renewtrust-weur"
+    type: "tcp443"
+    target: "cwap-weur-1.renewtrust.msappproxy.net"
+    interval: 300s
+    tags: ["role:trust-renewal", "region:eu", "azure-region:westeurope", "provider:msappproxy"]
+
+  - name: "epa-renewtrust-seas"
+    type: "tcp443"
+    target: "cwap-seas-1.renewtrust.msappproxy.net"
+    interval: 300s
+    tags: ["role:trust-renewal", "region:asia", "azure-region:southeastasia", "provider:msappproxy"]
+
+  - name: "epa-renewtrust-eus2"   # NAM trust renewal host
+    type: "tcp443"
+    target: "cwap-eus-2.renewtrust.msappproxy.net"
+    interval: 300s
+    tags: ["role:trust-renewal", "region:nam", "azure-region:eastus2", "provider:msappproxy"]
+
+  - name: "epa-renewtrust-seaus"  # AUS trust renewal host
+    type: "tcp443"
+    target: "cwap-seaus-1.renewtrust.msappproxy.net"
+    interval: 300s
+    tags: ["role:trust-renewal", "region:aus", "azure-region:australiasoutheast", "provider:msappproxy"]
+
+  - name: "epa-renewtrust-ejpnl"  # JAPAN trust renewal host
+    type: "tcp443"
+    target: "cwap-ejpnl-1.renewtrust.msappproxy.net"
+    interval: 300s
+    tags: ["role:trust-renewal", "region:japan", "azure-region:japaneast", "provider:msappproxy"]
+
+  # ---- EPA AUS1 signaling (Australia region) ----
+  - name: "epa-aus1-eaus3-tcp"
+    type: "tcp443"
+    target: "cwap-aus1-eaus3.servicebus.windows.net"
+    interval: 120s
+    tags: ["role:signaling", "region:aus", "cluster:aus1", "azure-region:australiaeast", "provider:azure-sb"]
+
+  - name: "epa-aus1-seaus3-tcp"
+    type: "tcp443"
+    target: "cwap-aus1-seaus3.servicebus.windows.net"
+    interval: 120s
+    tags: ["role:signaling", "region:aus", "cluster:aus1", "azure-region:australiasoutheast", "provider:azure-sb"]
+
+  - name: "epa-bootstrap-aus"
+    type: "tcp443"
+    target: "aus.bootstrap.msappproxy.net"
+    interval: 120s
+    tags: ["role:bootstrap", "region:aus", "provider:msappproxy"]
+
+  # ---- EPA JAPAN signaling (hybrid region, shares Asia1 + adds dedicated Japan cluster) ----
+  - name: "epa-japan-wjpnl1-tcp"
+    type: "tcp443"
+    target: "cwap-JAPAN-Wjpnl1.servicebus.windows.net"
+    interval: 120s
+    tags: ["role:signaling", "region:japan", "cluster:japan", "azure-region:japanwest", "provider:azure-sb"]
+
+  - name: "epa-bootstrap-japan"
+    type: "tcp443"
+    target: "japan.bootstrap.msappproxy.net"
+    interval: 120s
+    tags: ["role:bootstrap", "region:japan", "provider:msappproxy"]
 
   # ---- Entra Private Access — control plane / bootstrap ----
   - name: "msft-login"
     type: "tcp443"
     target: "login.microsoftonline.com"
     interval: 120s
+    tags: ["role:auth", "region:global", "provider:microsoft"]
+
+  # ---- Public PKI revocation + CTL + EPA connector autoupdate ----
+  # High-value auxiliary endpoints used by EPA's TLS chain validation, the
+  # Windows CTL refresh path, and the connector autoupdate channel. 5m interval
+  # — low signal, no need to over-poll.
+  - name: "pki-crl-digicert"
+    type: "tcp443"
+    target: "crl3.digicert.com"
+    interval: 300s
+    tags: ["role:pki-crl", "region:global", "provider:digicert"]
+
+  - name: "pki-ocsp-digicert"
+    type: "tcp443"
+    target: "ocsp.digicert.com"
+    interval: 300s
+    tags: ["role:pki-ocsp", "region:global", "provider:digicert"]
+
+  - name: "ctl-windowsupdate"
+    type: "tcp443"
+    target: "ctldl.windowsupdate.com"
+    interval: 300s
+    tags: ["role:ctl", "region:global", "provider:microsoft"]
+
+  - name: "epa-connector-update"
+    type: "tcp443"
+    target: "connector-update.msappproxy.net"
+    interval: 300s
+    tags: ["role:update", "region:global", "provider:msappproxy"]
 
   # ===========================================================
   # Diagnostic checks — for proving root-cause when EPA is slow
@@ -89,6 +273,7 @@ checks:
     target: "cwap-eur1-weur2.servicebus.windows.net"
     port: 443
     interval: 60s
+    tags: ["role:signaling-tls", "region:eu", "cluster:eur1", "azure-region:westeurope", "provider:azure-sb"]
 
   # TLS session-resumption pair: two back-to-back handshakes (cold + warm)
   # sharing a session cache. Reports `cold_tls_ms`, `warm_tls_ms`,
@@ -102,6 +287,7 @@ checks:
     target: "cwap-eur1-weur2.servicebus.windows.net"
     port: 443
     interval: 5m
+    tags: ["role:signaling-tls-resume", "region:eu", "cluster:eur1", "azure-region:westeurope", "provider:azure-sb"]
 
   # Long-lived TLS hold-open: opens a connection and holds it idle for hold_for.
   # Classifies how the connection dies (peer_rst | peer_fin | ok_full_hold).
@@ -115,12 +301,14 @@ checks:
     hold_for: 4m
     tcp_keepalive: false   # set true to test whether TCP keepalives keep session alive
     interval: 5m
+    tags: ["role:signaling-holdopen", "region:eu", "cluster:eur1", "azure-region:westeurope", "provider:azure-sb"]
 
   # Local host health snapshot: CPU, memory, TCP established-count, retransmit
   # rate, RST send/recv rate. Pre-empts "your connector is overloaded" debate.
   - name: "host-health"
     type: "host_health"
     interval: 60s
+    tags: ["role:host-health", "region:local"]
 
   # Tail the connector's own trace log and report any new ERROR/WARN lines.
   # Adjust log_path to point at your connector log file. Default pattern is
@@ -130,6 +318,7 @@ checks:
     log_path: "C:\\Program Files\\Microsoft Entra Private Network Connector\\Logs\\connector_logs.log"
     pattern: "(?i)error|disconnect|reset|timeout"
     interval: 60s
+    tags: ["role:log-watch", "region:local"]
 
   # Auto-tracert on failure: add `trace_on_failure: true` to ANY check.
   # When the check fails, tracert.exe is run against the target and its hop-by-hop
