@@ -87,6 +87,55 @@ The log does **not** contain:
 You control retention via `log_max_size_mb`, `log_max_backups`,
 `log_max_age_days` — see `config.example.yaml`.
 
+## Can I share the log file? Is there anything sensitive in it?
+
+The log is plain-text JSON-Lines and human-readable — open it in Notepad
+before sharing if you want to confirm exactly what is in it. The categories
+of data it contains are:
+
+**Definitely NOT in the log:**
+
+- ❌ Usernames, UPNs, email addresses, principal names
+- ❌ Passwords, tokens, secrets, certificate private keys
+- ❌ Tenant IDs, Azure subscription IDs, app traffic, payload content
+- ❌ Browsing history, file content, screen activity, anything from outside
+  the configured probe targets
+
+**What IS in the log (default config):**
+
+| Field | Example | Sensitivity |
+|---|---|---|
+| Configured target hostnames | `cwap-eur1-weur2.servicebus.windows.net` | Public Microsoft endpoints — not sensitive |
+| Resolved public IPs | `52.142.x.x` | Public Microsoft infrastructure |
+| Connector machine hostname | `EPA01` | Customer-chosen device name |
+| Default gateway IP | `192.168.1.1` | Internal infra address (not personal data) |
+| Latency / timing numbers | `47.10ms` | Not sensitive |
+| TLS server cert metadata (CN, Issuer, SAN, NotAfter) | `*.servicebus.windows.net` / `Microsoft RSA TLS CA 02` | Public certificate metadata served by every TLS endpoint |
+| Connection error strings from the OS | `connection reset by peer` | Not sensitive |
+
+**Two narrow caveats — review before sharing:**
+
+1. **`tracert` output** is captured only on a failed check. The hop list can
+   include **internal router IPs and reverse-DNS names** along the path inside
+   the customer network. Not personal PII, but some organisations classify
+   internal network topology as sensitive infrastructure information. If that
+   applies to you, scrub the `extra.tracert` arrays from failed entries before
+   sharing the log externally.
+
+2. **`log_tail`** — disabled by default. If you enable it and point it at a
+   file (e.g. an EPA connector log) with a regex like `error|fail`, the
+   matched lines are captured **verbatim** in the JSON log. Those lines could
+   contain whatever the source application logs — tenant ID GUIDs, connector
+   names, internal application names, internal URLs being proxied, etc. Only
+   enable `log_tail` against files you are comfortable sharing the contents
+   of. The captured lines appear under `extra.matches`.
+
+**Practical bottom line:** in the default configuration (no `log_tail`),
+the worst-case sensitive content is the local gateway IP plus possibly a few
+internal router hops on a failed `tracert`. Open the file in Notepad, search
+for any of the above before sending — the format is one self-contained JSON
+object per line, so you can edit/redact freely with any text editor.
+
 ## What permissions does it need?
 
 - **`LocalSystem`** when installed as a Windows service. This is the standard
