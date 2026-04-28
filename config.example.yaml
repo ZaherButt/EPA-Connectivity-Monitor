@@ -132,32 +132,11 @@ checks:
     trace_on_failure: true
     tags: ["role:signaling-tls", "region:asia", "cluster:asia1", "azure-region:japaneast", "provider:azure-sb"]
 
-  # ---- EPA bootstrap (control plane) — generic + regional aliases ----
-  # Generic resolves to whichever region the cloud has the tenant pinned to.
-  # Regional aliases let us see whether one regional bootstrap is degraded.
-  - name: "epa-bootstrap-generic"
-    type: "tcp443"
-    target: "bootstrap.msappproxy.net"
-    interval: 120s
-    tags: ["role:bootstrap", "region:global", "provider:msappproxy"]
-
-  - name: "epa-bootstrap-nam"
-    type: "tcp443"
-    target: "nam.bootstrap.msappproxy.net"
-    interval: 120s
-    tags: ["role:bootstrap", "region:nam", "provider:msappproxy"]
-
-  - name: "epa-bootstrap-eur"
-    type: "tcp443"
-    target: "eur.bootstrap.msappproxy.net"
-    interval: 120s
-    tags: ["role:bootstrap", "region:eu", "provider:msappproxy"]
-
-  - name: "epa-bootstrap-asia"
-    type: "tcp443"
-    target: "asia.bootstrap.msappproxy.net"
-    interval: 120s
-    tags: ["role:bootstrap", "region:asia", "provider:msappproxy"]
+  # NOTE: *.bootstrap.msappproxy.net hostnames (generic + nam/eur/asia/aus/japan)
+  # are NOT published on public DNS — verified NXDOMAIN from both Mac (8.8.8.8)
+  # and Azure devbox. Connector bootstrap discovery uses a different flow
+  # (likely connector-update.msappproxy.net + per-tenant lookup). Removed in v0.2.3
+  # to eliminate noise.
 
   # ---- EPA trust renewal hosts (per-region) ----
   - name: "epa-renewtrust-weur"
@@ -203,24 +182,12 @@ checks:
     interval: 120s
     tags: ["role:signaling", "region:aus", "cluster:aus1", "azure-region:australiasoutheast", "provider:azure-sb"]
 
-  - name: "epa-bootstrap-aus"
-    type: "tcp443"
-    target: "aus.bootstrap.msappproxy.net"
-    interval: 120s
-    tags: ["role:bootstrap", "region:aus", "provider:msappproxy"]
-
   # ---- EPA JAPAN signaling (hybrid region, shares Asia1 + adds dedicated Japan cluster) ----
   - name: "epa-japan-wjpnl1-tcp"
     type: "tcp443"
     target: "cwap-JAPAN-Wjpnl1.servicebus.windows.net"
     interval: 120s
     tags: ["role:signaling", "region:japan", "cluster:japan", "azure-region:japanwest", "provider:azure-sb"]
-
-  - name: "epa-bootstrap-japan"
-    type: "tcp443"
-    target: "japan.bootstrap.msappproxy.net"
-    interval: 120s
-    tags: ["role:bootstrap", "region:japan", "provider:msappproxy"]
 
   # ---- Entra Private Access — control plane / bootstrap ----
   - name: "msft-login"
