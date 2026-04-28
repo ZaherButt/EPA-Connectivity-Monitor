@@ -1,7 +1,14 @@
 # EPA Connectivity Monitor
 
+> ⚠️ **Community diagnostic tool — not a Microsoft product.** No warranty, no
+> support contract. See [`DISCLAIMER.md`](DISCLAIMER.md). For official Entra
+> Private Access support, contact Microsoft via your organisation's standard
+> support channel.
+
 Standalone Windows tool that periodically checks network connectivity and writes
-results to a rotating JSON-Lines log file.
+results to a rotating JSON-Lines log file. Built to capture independent
+network observations from a connector host's vantage point so root-cause
+discussions can be grounded in data.
 
 > **Trust & security:** see [`SECURITY.md`](SECURITY.md) for what the tool does
 > and does not do (no telemetry, no auto-update, no credential access, local

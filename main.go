@@ -20,10 +20,21 @@ var (
 	flagDev       = flag.Bool("dev", false, "Dev mode: override all check intervals to 1s (high log volume)")
 	flagInstall   = flag.Bool("install", false, "Windows: install as a service (requires --config; runs as LocalSystem)")
 	flagUninstall = flag.Bool("uninstall", false, "Windows: stop and remove the installed service")
+	flagVersion   = flag.Bool("version", false, "Print version and exit")
+)
+
+const (
+	version    = "0.2.3"
+	bannerLine = "EPA Connectivity Monitor v" + version + " - community diagnostic tool, not a Microsoft product. No warranty. See DISCLAIMER.md."
 )
 
 func main() {
 	flag.Parse()
+
+	if *flagVersion {
+		fmt.Println(bannerLine)
+		return
+	}
 
 	if *flagUninstall {
 		if err := uninstallService(); err != nil {
@@ -61,6 +72,10 @@ func main() {
 		fmt.Printf("%+v\n", cfg)
 		return
 	}
+
+	// Print disclaimer banner once at startup (interactive runs only; the SCM
+	// service path emits this via the runtime logger instead — see runService).
+	fmt.Fprintln(os.Stderr, bannerLine)
 
 	if *flagDev {
 		fmt.Fprintln(os.Stderr, "*** DEV MODE: intervals -> 1s, holdopen hold_for -> 5s ***")
