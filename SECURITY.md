@@ -31,6 +31,7 @@ Every check is documented in `README.md`. Briefly, the only outbound traffic is:
 | `tcp443`        | TCP SYN to port 443 of the configured target, then close |
 | `dns_a`         | UDP/TCP DNS A-record query to the configured resolver    |
 | `tls`           | TCP+TLS handshake to `target:port`, then close           |
+| `tls_resume`    | Two back-to-back TCP+TLS handshakes to `target:port` (cold + warm), each closed immediately after the handshake completes |
 | `holdopen`      | TCP+TLS to `target:port`, held idle for `hold_for`       |
 | `host_health`   | None. Reads only local OS counters.                      |
 | `log_tail`      | None. Reads only the configured local file.              |
@@ -48,11 +49,16 @@ optionally an `extra` object with structured detail.
 
 The log contains:
 
-- timing numbers (`latency_ms`, `tls_handshake_ms`, etc.)
+- timing numbers (`latency_ms`, `tls_handshake_ms`, `cold_tls_ms`, `warm_tls_ms`, etc.)
 - the hostnames and IP addresses **you yourself configured** as probe targets
 - DNS resolver IPs you configured
 - the local default-gateway IP (auto-discovered, never sent anywhere)
-- TLS server certificate metadata (CN, issuer, expiry) — public information
+- TLS server certificate metadata for the chain presented by the server: per
+  cert the public Subject CN, Issuer CN, SHA-256 fingerprint (truncated),
+  NotAfter date, `is_ca` flag, and SAN DNS names. This is **public information**
+  presented by the server during every TLS handshake. **No private keys** are
+  ever read or written.
+- whether a TLS handshake resumed a prior session (`tls_resume` check only)
 - error strings from the OS networking stack (e.g. `connection reset by peer`)
 - for `host_health`: aggregate CPU%, free memory, TCP connection counts, no
   per-process or per-user information

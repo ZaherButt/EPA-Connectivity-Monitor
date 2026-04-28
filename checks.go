@@ -35,6 +35,8 @@ func runCheck(ctx context.Context, c CheckConfig, pingCount int) Result {
 		fillDNS(&res, c.Target, c.Resolver, c.Timeout)
 	case "tls":
 		fillTLS(&res, c)
+	case "tls_resume":
+		fillTLSResume(&res, c)
 	case "holdopen":
 		fillHoldOpen(ctx, &res, c)
 	case "host_health":

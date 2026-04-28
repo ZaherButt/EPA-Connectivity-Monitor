@@ -77,14 +77,31 @@ checks:
   # Diagnostic checks — for proving root-cause when EPA is slow
   # ===========================================================
 
-  # TLS-handshake split: separates TCP-connect time from TLS-handshake time.
+  # TLS-handshake split: separates TCP-connect time from TLS-handshake time,
+  # and dumps the full server certificate chain (subject/issuer/fingerprint
+  # per cert, plus a `chain_known_microsoft_root` flag).
   # If TCP is fast but TLS is slow, that's a smoking gun for a TLS-inspecting
-  # middlebox (customer firewall/proxy) on the path.
+  # middlebox (customer firewall/proxy) on the path. If
+  # `chain_known_microsoft_root` comes back false, the chain has been re-issued
+  # by an internal CA — definitive proof of TLS interception.
   - name: "tls-epa-sb-eur1-weur2"
     type: "tls"
     target: "cwap-eur1-weur2.servicebus.windows.net"
     port: 443
     interval: 60s
+
+  # TLS session-resumption pair: two back-to-back handshakes (cold + warm)
+  # sharing a session cache. Reports `cold_tls_ms`, `warm_tls_ms`,
+  # `warm_did_resume`, and `delta_tls_ms`.
+  # Use this to empirically test the common claim "latency only occurs on the
+  # first connection". If `warm_did_resume: false` consistently, the server
+  # never issues session tickets — every reconnect from a connector pays the
+  # full handshake cost (Service Bus relay endpoints behave this way).
+  - name: "tls-resume-epa-sb-eur1-weur2"
+    type: "tls_resume"
+    target: "cwap-eur1-weur2.servicebus.windows.net"
+    port: 443
+    interval: 5m
 
   # Long-lived TLS hold-open: opens a connection and holds it idle for hold_for.
   # Classifies how the connection dies (peer_rst | peer_fin | ok_full_hold).

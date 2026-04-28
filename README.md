@@ -46,11 +46,18 @@ Each check is documented below as a self-contained reference:
 - **Key fields:** `resolver`, `latency_ms`, `detail` (record count + IPs).
 
 ### `tls`
-- **What it does:** opens a TCP connection then a TLS handshake to `target:port` (default 443). Reports **TCP-connect time and TLS-handshake time as separate metrics**.
-- **Why it matters:** the headline diagnostic. A TLS-inspecting middlebox, a far-region backend, or an overloaded TLS terminator all *look the same* to a plain `tcp443` check but produce a distinctive split here. Lets you say "TCP is fine, TLS is the slow part" with evidence.
-- **Healthy looks like:** TLS handshake roughly 1–3× the TCP-connect time. TLS1.3, expected SNI, expected issuer CN.
-- **Red flag:** TCP-connect tiny (e.g. 5 ms) but TLS-handshake huge (e.g. 400 ms) → TLS payload is traversing further than the TCP terminator (CDN/edge LB pattern, or far-region backend). Unexpected issuer CN → TLS-inspecting proxy is in the path.
-- **Key fields:** `extra.tcp_connect_ms`, `extra.tls_handshake_ms`, `extra.tls_version`, `extra.sni`, `extra.cipher`, `extra.peer_cn`, `extra.peer_issuer`.
+- **What it does:** opens a TCP connection then a TLS handshake to `target:port` (default 443). Reports **TCP-connect time and TLS-handshake time as separate metrics**, plus the **full server certificate chain** (subject CN, issuer CN, SHA-256 fingerprint, expiry per cert) and a `chain_known_microsoft_root` flag set when the chain terminates at a known public CA.
+- **Why it matters:** the headline diagnostic. A TLS-inspecting middlebox, a far-region backend, or an overloaded TLS terminator all *look the same* to a plain `tcp443` check but produce a distinctive split here. The chain dump turns "is there a TLS-intercepting proxy in the path?" from a hard question into a glance — if `chain_root_issuer` isn't a recognised public CA (DigiCert, Microsoft, Baltimore, GlobalSign), there is.
+- **Healthy looks like:** TLS handshake roughly 1–3× the TCP-connect time. TLS1.3, expected SNI, `chain_known_microsoft_root: true`, leaf issuer is a Microsoft public CA.
+- **Red flag:** TCP-connect tiny (e.g. 5 ms) but TLS-handshake huge (e.g. 400 ms) → TLS payload is traversing further than the TCP terminator (CDN/edge LB pattern, or far-region backend). `chain_known_microsoft_root: false` or a `chain_root_issuer` matching the customer's firewall/proxy product → TLS-inspecting proxy is in the path.
+- **Key fields:** `extra.tcp_connect_ms`, `extra.tls_handshake_ms`, `extra.tls_version`, `extra.sni`, `extra.cipher_suite`, `extra.server_cert_cn`, `extra.server_cert_issuer`, `extra.chain_len`, `extra.chain_root_issuer`, `extra.chain_known_microsoft_root`, `extra.chain` (array of `subject_cn` / `issuer_cn` / `sha256_fp` / `not_after` / `valid_days` / `is_ca` / `dns_names`).
+
+### `tls_resume`
+- **What it does:** performs **two** back-to-back TLS handshakes against the same target with a shared session cache. The first is "cold" (full handshake); the second is "warm" (server *should* resume via TLS-1.3 PSK or TLS-1.2 session ticket if it issues one). Reports both timings, the delta, and whether the warm handshake actually resumed.
+- **Why it matters:** directly tests the common Microsoft-Support framing *"latency only occurs on the first connection"*. If a server issues session tickets and the customer's egress preserves them, warm handshakes are dramatically cheaper than cold ones — that's the "first connection only" pattern. If the warm handshake takes the same time as cold (or `warm_did_resume: false`), the claim doesn't hold for that endpoint and every reconnect pays the full cost.
+- **Healthy looks like:** `cold_did_resume: false`, `warm_did_resume: true`, `delta_tls_ms` materially > 0 (warm faster than cold). Example: cold 35 ms, warm 9 ms, delta 26 ms.
+- **Red flag:** `warm_did_resume: false` consistently → the server isn't issuing session tickets (e.g. Service Bus relay endpoints don't, so connector reconnects always pay full handshake — important context when MSFT support invokes the "first connection only" argument). `warm_did_resume: true` but `delta_tls_ms` ≈ 0 → resumption is happening but a middlebox is doing a fresh handshake on the customer-side leg anyway.
+- **Key fields:** `extra.cold_tcp_ms`, `extra.cold_tls_ms`, `extra.cold_did_resume`, `extra.cold_version`, `extra.warm_tcp_ms`, `extra.warm_tls_ms`, `extra.warm_did_resume`, `extra.warm_version`, `extra.delta_tls_ms`, `extra.sni`.
 
 ### `holdopen`
 - **What it does:** opens a TLS connection and holds it idle (no traffic) for `hold_for` (default 4m). When the connection eventually dies, classifies the cause.
@@ -96,14 +103,20 @@ endpoints whose failures you actually need to escalate.
 The diagnostic check types are designed to *combine* into a structured evidence pack:
 
 1. **`tls`** against each Service Bus relay endpoint — proves where the time goes
-   (TCP vs TLS) and which side of the wire owns it.
-2. **`holdopen` (4m)** against each Service Bus relay endpoint — proves whether
+   (TCP vs TLS), surfaces the full server certificate chain, and flags whether
+   the chain terminates at a known Microsoft public CA (a `false` here is
+   strong evidence of a TLS-inspecting middlebox).
+2. **`tls_resume`** against each endpoint — empirically tests the common claim
+   *"latency only occurs on the first connection"* by doing back-to-back cold +
+   warm handshakes and reporting whether session resumption was actually offered
+   and whether it materially helped.
+3. **`holdopen` (4m)** against each Service Bus relay endpoint — proves whether
    long-lived sessions survive, and *attributes* who killed them (`peer_rst` =
    stateful FW on the path; `peer_fin_idle` = upstream policy).
-3. **`host_health`** — pre-empts "your connector host is overloaded" pushback.
-4. **`log_tail`** of the connector's own trace log — correlates user-reported
+4. **`host_health`** — pre-empts "your connector host is overloaded" pushback.
+5. **`log_tail`** of the connector's own trace log — correlates user-reported
    issues with connector-internal events at the same wallclock time.
-5. **`trace_on_failure`** — every TCP/TLS failure is automatically annotated
+6. **`trace_on_failure`** — every TCP/TLS failure is automatically annotated
    with a tracert, showing exactly which hop the path dies at.
 
 Run the same `.exe` from an Azure VM in the EPA cluster region with the same

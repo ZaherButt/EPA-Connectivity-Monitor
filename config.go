@@ -99,7 +99,7 @@ func LoadConfig(path string) (*Config, error) {
 		}
 		switch c.Checks[i].Type {
 		case "gateway_ping", "internet_ping", "tcp443", "dns_a",
-			"tls", "holdopen", "host_health", "log_tail":
+			"tls", "tls_resume", "holdopen", "host_health", "log_tail":
 		default:
 			return nil, fmt.Errorf("check %q: unknown type %q", c.Checks[i].Name, c.Checks[i].Type)
 		}
