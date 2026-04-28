@@ -5,9 +5,15 @@
 #   log_file: 'epa-connectivity-monitor.log'
 #   log_file: 'logs\epa-connectivity-monitor.log'
 #   log_file: 'C:\ProgramData\EpaConnectivityMonitor\epa-connectivity-monitor.log'
-log_max_size_mb: 500
-log_max_backups: 7
+# Log rotation: active file rolls at log_max_size_mb, up to log_max_backups
+# compressed copies are kept, anything older than log_max_age_days is deleted.
+# Defaults below cap on-disk footprint at ~400 MB worst case (typically <150 MB).
+# log_min_free_disk_mb: if the log volume drops below this many MB free, the
+# tool stops writing to disk (console output continues) until space is freed.
+log_max_size_mb: 100
+log_max_backups: 3
 log_max_age_days: 7
+log_min_free_disk_mb: 500
 
 # Default values applied when a check omits its own
 default_interval: 60s

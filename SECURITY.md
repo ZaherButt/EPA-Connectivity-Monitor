@@ -18,13 +18,18 @@ to it — please do).
   is ever uploaded anywhere by the tool. If you choose to share a log with
   Microsoft Support, that is an explicit human action.
 - **Bounded disk usage.** The log file is rotated automatically. With the
-  default settings the active file rolls at **500 MB**, up to **7 backups**
-  are kept (each gzip-compressed — typically 30–60 MB for this JSONL format),
+  default settings the active file rolls at **100 MB**, up to **3 backups**
+  are kept (each gzip-compressed — typically 5–15 MB for this JSONL format),
   and anything older than **7 days** is deleted. Realistic steady-state
-  footprint on disk: **~500 MB – 1 GB**. Absolute worst case before age-based
-  cleanup: **~4 GB** (1 active + 7 compressed backups). All three thresholds
-  are overridable via `log_max_size_mb`, `log_max_backups`, `log_max_age_days`
-  in `config.yaml`. The tool will not silently fill the disk.
+  footprint on disk: **~100–150 MB**. Absolute worst case before age-based
+  cleanup: **~400 MB** (1 active file + 3 compressed backups). On top of
+  that, the logger checks free disk space on the log volume every 30 seconds
+  and **stops writing to disk if free space drops below `log_min_free_disk_mb`
+  (default 500 MB)** — console output continues, and writes resume
+  automatically once space is freed. All four thresholds are overridable via
+  `log_max_size_mb`, `log_max_backups`, `log_max_age_days`,
+  `log_min_free_disk_mb` in `config.yaml`. The tool will not silently fill
+  the disk.
 - **Open source.** All ~2k lines of Go are in this repository. The release
   artefact is reproducible from this source.
 

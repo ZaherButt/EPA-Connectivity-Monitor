@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -28,10 +29,15 @@ type Result struct {
 }
 
 type Logger struct {
-	mu      sync.Mutex
-	writer  io.Writer
-	console *log.Logger
-	color   bool
+	mu          sync.Mutex
+	writer      io.Writer
+	console     *log.Logger
+	color       bool
+	logPath     string
+	minFreeMB   uint64
+	lastCheck   time.Time
+	diskFull    bool
+	lastWarnAt  time.Time
 }
 
 const (
@@ -57,10 +63,45 @@ func NewLogger(cfg *Config) *Logger {
 		Compress:   true,
 	}
 	return &Logger{
-		writer:  w,
-		console: log.New(os.Stdout, "", log.LstdFlags),
-		color:   stdoutIsTTY(),
+		writer:    w,
+		console:   log.New(os.Stdout, "", log.LstdFlags),
+		color:     stdoutIsTTY(),
+		logPath:   cfg.LogFile,
+		minFreeMB: uint64(cfg.LogMinFreeDiskMB),
 	}
+}
+
+// diskHasRoom returns true if the log volume has at least minFreeMB free.
+// Result is cached for 30s to keep the hot path cheap. On stat error we fail
+// open (allow writes) rather than silencing the tool on a transient hiccup.
+func (l *Logger) diskHasRoom() bool {
+	if l.minFreeMB == 0 {
+		return true
+	}
+	now := time.Now()
+	if now.Sub(l.lastCheck) < 30*time.Second {
+		return !l.diskFull
+	}
+	l.lastCheck = now
+	dir := filepath.Dir(l.logPath)
+	if dir == "" {
+		dir = "."
+	}
+	free, err := freeDiskMB(dir)
+	if err != nil {
+		l.diskFull = false
+		return true
+	}
+	full := free < l.minFreeMB
+	if full && !l.diskFull {
+		l.console.Printf("WARN: log volume %s has %d MB free (< %d MB threshold) — pausing log writes to protect disk",
+			dir, free, l.minFreeMB)
+		l.lastWarnAt = now
+	} else if !full && l.diskFull {
+		l.console.Printf("INFO: log volume %s has %d MB free again — resuming log writes", dir, free)
+	}
+	l.diskFull = full
+	return !full
 }
 
 func (l *Logger) Write(r Result) {
@@ -75,8 +116,10 @@ func (l *Logger) Write(r Result) {
 	b = append(b, '\n')
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if _, err := l.writer.Write(b); err != nil {
-		l.console.Printf("logger write error: %v", err)
+	if l.diskHasRoom() {
+		if _, err := l.writer.Write(b); err != nil {
+			l.console.Printf("logger write error: %v", err)
+		}
 	}
 	status := "[OK]"
 	if !r.Success {

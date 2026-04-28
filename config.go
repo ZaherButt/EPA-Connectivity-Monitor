@@ -24,14 +24,15 @@ func exeDir() string {
 }
 
 type Config struct {
-	LogFile         string        `yaml:"log_file"`
-	LogMaxSizeMB    int           `yaml:"log_max_size_mb"`
-	LogMaxBackups   int           `yaml:"log_max_backups"`
-	LogMaxAgeDays   int           `yaml:"log_max_age_days"`
-	DefaultInterval time.Duration `yaml:"default_interval"`
-	DefaultTimeout  time.Duration `yaml:"default_timeout"`
-	PingCount       int           `yaml:"ping_count"`
-	Checks          []CheckConfig `yaml:"checks"`
+	LogFile          string        `yaml:"log_file"`
+	LogMaxSizeMB     int           `yaml:"log_max_size_mb"`
+	LogMaxBackups    int           `yaml:"log_max_backups"`
+	LogMaxAgeDays    int           `yaml:"log_max_age_days"`
+	LogMinFreeDiskMB int           `yaml:"log_min_free_disk_mb"`
+	DefaultInterval  time.Duration `yaml:"default_interval"`
+	DefaultTimeout   time.Duration `yaml:"default_timeout"`
+	PingCount        int           `yaml:"ping_count"`
+	Checks           []CheckConfig `yaml:"checks"`
 }
 
 type CheckConfig struct {
@@ -78,13 +79,16 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 	if c.LogMaxSizeMB == 0 {
-		c.LogMaxSizeMB = 500
+		c.LogMaxSizeMB = 100
 	}
 	if c.LogMaxBackups == 0 {
-		c.LogMaxBackups = 7
+		c.LogMaxBackups = 3
 	}
 	if c.LogMaxAgeDays == 0 {
 		c.LogMaxAgeDays = 7
+	}
+	if c.LogMinFreeDiskMB == 0 {
+		c.LogMinFreeDiskMB = 500
 	}
 	if c.DefaultInterval == 0 {
 		c.DefaultInterval = 60 * time.Second

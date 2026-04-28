@@ -223,9 +223,11 @@ add `packet_loss_pct`. Diagnostic check types (`tls`, `holdopen`, `host_health`,
 {"check":"holdopen-epa","type":"holdopen","target":"cwap-eur1-weur2.servicebus.windows.net","success":false,"extra":{"held_seconds":62.4,"hold_target_sec":240,"closed_by":"peer_rst","classification":"peer_rst","tcp_keepalive":false}}
 ```
 
-Logs rotate at `log_max_size_mb` (default 500MB), keep `log_max_backups` files,
-older than `log_max_age_days` (default 7) are deleted, and rotated files are
-gzip-compressed.
+Logs rotate at `log_max_size_mb` (default 100 MB), keep `log_max_backups` files
+(default 3), older than `log_max_age_days` (default 7) are deleted, and rotated
+files are gzip-compressed. The logger also pauses writes if the log volume drops
+below `log_min_free_disk_mb` (default 500 MB) free, so the tool will not fill
+the disk. Worst-case on-disk footprint with defaults: ~400 MB.
 
 **Log location:** if `log_file` is omitted, the log is written as
 `epa-connectivity-monitor.log` in the folder containing `epa-connectivity-monitor.exe`. Relative
