@@ -126,10 +126,6 @@ The diagnostic check types are designed to *combine* into a structured evidence 
 6. **`trace_on_failure`** — every TCP/TLS failure is automatically annotated
    with a tracert, showing exactly which hop the path dies at.
 
-Run the same `.exe` from an Azure VM in the EPA cluster region with the same
-config for a parallel external vantage. Comparing the two timelines makes it
-clear which segment of the path each symptom lives on.
-
 ## Releases & verifying the binary
 
 Each tagged release at
