@@ -93,7 +93,7 @@ The log is plain-text JSON-Lines and human-readable — open it in Notepad
 before sharing if you want to confirm exactly what is in it. The categories
 of data it contains are:
 
-**Definitely NOT in the log:**
+**What is NOT in the log:**
 
 - ❌ Usernames, UPNs, email addresses, principal names
 - ❌ Passwords, tokens, secrets, certificate private keys
