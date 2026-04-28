@@ -17,10 +17,14 @@ to it — please do).
 - **Local-only.** Logs are written to disk on the host that ran them. Nothing
   is ever uploaded anywhere by the tool. If you choose to share a log with
   Microsoft Support, that is an explicit human action.
-- **Bounded disk usage.** The log file is rotated automatically (defaults:
-  500 MB per file, 7 compressed backups, 7-day max age — all overridable via
-  `log_max_size_mb`, `log_max_backups`, `log_max_age_days` in `config.yaml`).
-  The tool will not silently fill the disk.
+- **Bounded disk usage.** The log file is rotated automatically. With the
+  default settings the active file rolls at **500 MB**, up to **7 backups**
+  are kept (each gzip-compressed — typically 30–60 MB for this JSONL format),
+  and anything older than **7 days** is deleted. Realistic steady-state
+  footprint on disk: **~500 MB – 1 GB**. Absolute worst case before age-based
+  cleanup: **~4 GB** (1 active + 7 compressed backups). All three thresholds
+  are overridable via `log_max_size_mb`, `log_max_backups`, `log_max_age_days`
+  in `config.yaml`. The tool will not silently fill the disk.
 - **Open source.** All ~2k lines of Go are in this repository. The release
   artefact is reproducible from this source.
 
