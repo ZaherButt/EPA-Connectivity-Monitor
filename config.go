@@ -79,16 +79,16 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 	if c.LogMaxSizeMB == 0 {
-		c.LogMaxSizeMB = 100
+		c.LogMaxSizeMB = 500
 	}
 	if c.LogMaxBackups == 0 {
-		c.LogMaxBackups = 3
+		c.LogMaxBackups = 9
 	}
 	if c.LogMaxAgeDays == 0 {
 		c.LogMaxAgeDays = 7
 	}
 	if c.LogMinFreeDiskMB == 0 {
-		c.LogMinFreeDiskMB = 500
+		c.LogMinFreeDiskMB = 5120
 	}
 	if c.DefaultInterval == 0 {
 		c.DefaultInterval = 60 * time.Second
