@@ -5,11 +5,29 @@ import (
 	"fmt"
 	"net"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	probing "github.com/prometheus-community/pro-bing"
 )
+
+// splitTargetHostPort normalizes a target string that may include an embedded
+// ":port" suffix (e.g. "host.example.com:443"). Returns the bare host and the
+// effective port, with defaultPort used when no port is embedded. Defensive
+// against config entries copied verbatim from "host:port"-style log lines —
+// without this, net.JoinHostPort(target, port) would produce "host:443:443"
+// and the resolver would fail with "no such host".
+func splitTargetHostPort(target string, defaultPort int) (string, int) {
+	if h, p, err := net.SplitHostPort(target); err == nil {
+		port := defaultPort
+		if pn, perr := strconv.Atoi(p); perr == nil && pn > 0 {
+			port = pn
+		}
+		return h, port
+	}
+	return target, defaultPort
+}
 
 func runCheck(ctx context.Context, c CheckConfig, pingCount int) Result {
 	res := Result{

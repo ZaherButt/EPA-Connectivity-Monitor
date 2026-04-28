@@ -24,19 +24,20 @@ import (
 // This is the centerpiece for diagnosing stateful firewall idle-timeouts that
 // kill long-lived Service Bus relay sessions used by EPA connectors.
 func fillHoldOpen(ctx context.Context, res *Result, c CheckConfig) {
-	port := c.Port
-	if port == 0 {
-		port = 443
+	defaultPort := c.Port
+	if defaultPort == 0 {
+		defaultPort = 443
 	}
+	host, port := splitTargetHostPort(c.Target, defaultPort)
 	sni := c.TLSServerName
 	if sni == "" {
-		sni = c.Target
+		sni = host
 	}
 	holdFor := c.HoldFor
 	if holdFor == 0 {
 		holdFor = 4 * time.Minute
 	}
-	addr := net.JoinHostPort(c.Target, strconv.Itoa(port))
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	dialer := &net.Dialer{Timeout: c.Timeout, KeepAlive: -1}
 	if c.TCPKeepalive {

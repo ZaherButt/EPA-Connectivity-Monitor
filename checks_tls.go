@@ -62,15 +62,16 @@ func chainLooksMicrosoftTrusted(chain []*x509.Certificate) bool {
 // recording the time spent in each phase. Crucial for distinguishing TLS-inspecting
 // middleboxes (slow handshake but fast TCP) from network latency (slow TCP).
 func fillTLS(res *Result, c CheckConfig) {
-	port := c.Port
-	if port == 0 {
-		port = 443
+	defaultPort := c.Port
+	if defaultPort == 0 {
+		defaultPort = 443
 	}
+	host, port := splitTargetHostPort(c.Target, defaultPort)
 	sni := c.TLSServerName
 	if sni == "" {
-		sni = c.Target
+		sni = host
 	}
-	addr := net.JoinHostPort(c.Target, strconv.Itoa(port))
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	t0 := time.Now()
 	rawConn, err := net.DialTimeout("tcp", addr, c.Timeout)
@@ -142,15 +143,16 @@ func fillTLS(res *Result, c CheckConfig) {
 // whether resumption actually happened, and the delta — directly addressing
 // the common claim "latency only occurs on the first connection".
 func fillTLSResume(res *Result, c CheckConfig) {
-	port := c.Port
-	if port == 0 {
-		port = 443
+	defaultPort := c.Port
+	if defaultPort == 0 {
+		defaultPort = 443
 	}
+	host, port := splitTargetHostPort(c.Target, defaultPort)
 	sni := c.TLSServerName
 	if sni == "" {
-		sni = c.Target
+		sni = host
 	}
-	addr := net.JoinHostPort(c.Target, strconv.Itoa(port))
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	// Shared session cache so handshake #2 can reuse #1's ticket.
 	cache := tls.NewLRUClientSessionCache(4)
