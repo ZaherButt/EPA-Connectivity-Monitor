@@ -110,6 +110,7 @@ of data it contains are:
 
 | Field | Example | Sensitivity |
 |---|---|---|
+| Source hostname (`host` field, top-level) | `host: EPA01` | Customer-chosen device name — stamped on **every** record |
 | Configured target hostnames | `cwap-eur1-weur2.servicebus.windows.net` | Public Microsoft endpoints — not sensitive |
 | Resolved public IPs | `52.142.x.x` | Public Microsoft infrastructure |
 | Connector machine hostname | `EPA01` | Customer-chosen device name |
@@ -128,9 +129,12 @@ of data it contains are:
    uniquely identifies your Entra tenant to anyone you share the log with.
    To strip it before sharing, use:
    ```bash
-   jq -c 'del(.extra.tenant_id)' \
+   jq -c 'del(.extra.tenant_id) | del(.host)' \
      epa-connectivity-monitor.log > epa-redacted.log
    ```
+   The `host` field (top-level, present on every record from v0.5.3+) is the
+   source machine name; redact it together with `tenant_id` if the device
+   name itself is sensitive in your environment.
    On Windows without `jq`, the file is plain text — open in any editor and
    replace the GUID with `<redacted>`.
 

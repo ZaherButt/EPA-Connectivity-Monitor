@@ -142,25 +142,30 @@ while remoted into a customer connector.
 > spikes, hold-open resets, asymmetric path failures — only show up over
 > time and require the long-running mode.
 
-### EPA connector tenant_id in every log entry
+### Source host + EPA connector tenant_id in every log entry
 
-When run on a Windows host that has the Microsoft Entra private network
-connector installed, the binary reads the `tenant_id` from the connector's
-on-disk config (`%ProgramData%\Microsoft\Microsoft Entra private network connector\Endpoints\endpoints.txt`)
-once at startup and stamps it into the `extra` block of every JSON log
-record. Example:
+Every JSON log record carries a top-level `host` field set to `os.Hostname()`
+at startup. This means logs from multiple connectors / lab boxes can be
+shipped into the same place and immediately disambiguated:
 
 ```json
-{"check":"servicebus-uk","type":"tls","success":true,"latency_ms":42.1,
- "extra":{"tenant_id":"72f988bf-86f1-41af-91ab-2d7cd011db47",
- "tls_version":"TLS1.3"}}
+{"timestamp":"2026-04-29T17:24:50Z","host":"epa01","check":"servicebus-uk",
+ "type":"tls","success":true,"latency_ms":42.1,
+ "extra":{"tenant_id":"72f988bf-86f1-41af-91ab-2d7cd011db47","tls_version":"TLS1.3"}}
 ```
 
+When run on a Windows host that has the Microsoft Entra private network
+connector installed, the binary additionally reads the `tenant_id` from the
+connector's on-disk config (`%ProgramData%\Microsoft\Microsoft Entra private network connector\Endpoints\endpoints.txt`)
+once at startup and stamps it into the `extra` block of every JSON log
+record.
+
 This means a support engineer reading a shared log can immediately tell
-which tenant produced it, without back-and-forth. If no connector is
-installed (e.g. running on a generic Windows box for testing) the field is
-simply omitted. See [`SECURITY.md`](SECURITY.md) for guidance on redacting
-this field before sharing logs with third parties.
+which host produced it, and which tenant it belongs to, without
+back-and-forth. If no connector is installed (e.g. running on a generic
+Windows box for testing) the `tenant_id` field is simply omitted; `host`
+is always present. See [`SECURITY.md`](SECURITY.md) for guidance on
+redacting these fields before sharing logs with third parties.
 
 > Note: there is intentionally no `connector_id` field. The connector ID is
 > server-assigned by Azure during bootstrap and not stored anywhere on the

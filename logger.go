@@ -15,6 +15,7 @@ import (
 
 type Result struct {
 	Timestamp  string         `json:"timestamp"`
+	Host       string         `json:"host,omitempty"`
 	Check      string         `json:"check"`
 	Type       string         `json:"type"`
 	Target     string         `json:"target"`
@@ -38,6 +39,7 @@ type Logger struct {
 	lastCheck   time.Time
 	diskFull    bool
 	lastWarnAt  time.Time
+	host        string
 	tenantID    string
 }
 
@@ -63,12 +65,17 @@ func NewLogger(cfg *Config) *Logger {
 		MaxAge:     cfg.LogMaxAgeDays,
 		Compress:   true,
 	}
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "unknown"
+	}
 	return &Logger{
 		writer:      w,
 		console:     log.New(os.Stdout, "", log.LstdFlags),
 		color:       stdoutIsTTY(),
 		logPath:     cfg.LogFile,
 		minFreeMB:   uint64(cfg.LogMinFreeDiskMB),
+		host:        host,
 		tenantID:    connectorTenantID,
 	}
 }
@@ -109,6 +116,9 @@ func (l *Logger) diskHasRoom() bool {
 func (l *Logger) Write(r Result) {
 	if r.Timestamp == "" {
 		r.Timestamp = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	if r.Host == "" {
+		r.Host = l.host
 	}
 	if l.tenantID != "" {
 		if r.Extra == nil {

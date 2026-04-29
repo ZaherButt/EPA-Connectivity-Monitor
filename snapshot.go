@@ -23,11 +23,14 @@ import (
 func runSnapshot(cfg *Config) int {
 	color := stdoutIsTTY()
 
+	if h, err := os.Hostname(); err == nil && h != "" {
+		fmt.Printf("Host         : %s\n", h)
+	}
 	if connectorTenantID != "" {
 		fmt.Printf("Tenant ID    : %s\n", connectorTenantID)
 		fmt.Printf("Source       : %s\n", tenantIDSource)
-		fmt.Println()
 	}
+	fmt.Println()
 
 	fmt.Printf("Running %d checks once...\n\n", len(cfg.Checks))
 
