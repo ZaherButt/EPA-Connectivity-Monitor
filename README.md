@@ -10,6 +10,14 @@ results to a rotating JSON-Lines log file. Built to capture independent
 network observations from a connector host's vantage point so root-cause
 discussions can be grounded in data.
 
+**Specifically designed to surface the silent middlebox problems** that the
+EPA connector agent itself doesn't report:
+
+- **Undeclared proxy / WPAD** — snapshots `HTTP_PROXY` env vars, WinHTTP, WinINET (HKLM + HKCU), and WPAD DNS auto-discovery on every run, so you know whether the connector is being routed through a forward proxy the customer's network team forgot to mention.
+- **TLS interception (SSL inspection)** — captures the full server certificate chain on every TLS handshake and flags `chain_known_microsoft_root: false` whenever the cert isn't actually signed by Microsoft / a known public CA. That's the unambiguous signature of an in-line decrypting proxy (Zscaler, Netskope, Palo Alto, Forcepoint, Fortinet etc.).
+- **Aggressive idle-connection killing** — `holdopen` checks hold a TLS connection open for 4 minutes and report exactly when (and how — `peer_fin` vs `peer_rst`) it gets cut. Distinguishes legitimate upstream timeouts from middlebox enforcement.
+- **Asymmetric latency split** — `tls` reports TCP-connect time and TLS-handshake time as separate metrics, so a small TCP + huge TLS pattern (CDN edge terminating TCP, real cluster terminating TLS in another region) is obvious at a glance.
+
 > **Trust & security:** see [`SECURITY.md`](SECURITY.md) for what the tool does
 > and does not do (no telemetry, no auto-update, no credential access, local
 > logs only) and how to verify the published binary against this source tree.
