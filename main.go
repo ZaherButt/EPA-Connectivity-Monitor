@@ -15,7 +15,8 @@ import (
 
 var (
 	flagConfig    = flag.String("config", "config.yaml", "Path to YAML config file")
-	flagOnce      = flag.Bool("once", false, "Run each check exactly once and exit")
+	flagOnce      = flag.Bool("once", false, "Run each check exactly once and exit (writes to log as normal)")
+	flagSnapshot  = flag.Bool("snapshot", false, "Run each check once, print a colour-coded PASS/FAIL summary table to stdout, do not write the log file. Exit code 0 if all pass, 1 if any fail.")
 	flagPrint     = flag.Bool("print-config", false, "Print the loaded config and exit")
 	flagDev       = flag.Bool("dev", false, "Dev mode: override all check intervals to 1s (high log volume)")
 	flagInstall   = flag.Bool("install", false, "Windows: install as a service (requires --config; runs as LocalSystem)")
@@ -24,8 +25,19 @@ var (
 )
 
 const (
-	version    = "0.4.1"
+	version    = "0.5.0"
 	bannerLine = "EPA Connectivity Monitor v" + version + " - community diagnostic tool, not a Microsoft product. No warranty. See DISCLAIMER.md."
+)
+
+// connectorTenantID and connectorConnectorID are populated once at process
+// startup from the EPA connector's registry keys (Windows only). When
+// non-empty they are stamped into every log record's "extra" block by the
+// logger, so support engineers reading a shared log can immediately tell
+// which tenant + connector instance produced it without back-and-forth.
+var (
+	connectorTenantID    string
+	connectorConnectorID string
+	connectorIDSource    string
 )
 
 func main() {
@@ -76,6 +88,21 @@ func main() {
 	// Print disclaimer banner once at startup (interactive runs only; the SCM
 	// service path emits this via the runtime logger instead — see runService).
 	fmt.Fprintln(os.Stderr, bannerLine)
+
+	// Load EPA connector identifiers (Windows-only; no-op stub elsewhere).
+	// Populated globals are picked up by NewLogger and stamped on every
+	// log entry's extra block.
+	connectorTenantID, connectorConnectorID, connectorIDSource = loadConnectorIDs()
+	if connectorTenantID != "" || connectorConnectorID != "" {
+		fmt.Fprintf(os.Stderr, "EPA connector detected: tenant_id=%s connector_id=%s (source: %s)\n",
+			connectorTenantID, connectorConnectorID, connectorIDSource)
+	} else {
+		fmt.Fprintln(os.Stderr, "EPA connector identifiers not found in registry (running on a non-connector host or registry path differs); log entries will omit tenant_id/connector_id.")
+	}
+
+	if *flagSnapshot {
+		os.Exit(runSnapshot(cfg))
+	}
 
 	if *flagDev {
 		fmt.Fprintln(os.Stderr, "*** DEV MODE: intervals -> 1s, holdopen hold_for -> 5s ***")

@@ -38,6 +38,8 @@ type Logger struct {
 	lastCheck   time.Time
 	diskFull    bool
 	lastWarnAt  time.Time
+	tenantID    string
+	connectorID string
 }
 
 const (
@@ -63,11 +65,13 @@ func NewLogger(cfg *Config) *Logger {
 		Compress:   true,
 	}
 	return &Logger{
-		writer:    w,
-		console:   log.New(os.Stdout, "", log.LstdFlags),
-		color:     stdoutIsTTY(),
-		logPath:   cfg.LogFile,
-		minFreeMB: uint64(cfg.LogMinFreeDiskMB),
+		writer:      w,
+		console:     log.New(os.Stdout, "", log.LstdFlags),
+		color:       stdoutIsTTY(),
+		logPath:     cfg.LogFile,
+		minFreeMB:   uint64(cfg.LogMinFreeDiskMB),
+		tenantID:    connectorTenantID,
+		connectorID: connectorConnectorID,
 	}
 }
 
@@ -107,6 +111,17 @@ func (l *Logger) diskHasRoom() bool {
 func (l *Logger) Write(r Result) {
 	if r.Timestamp == "" {
 		r.Timestamp = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	if l.tenantID != "" || l.connectorID != "" {
+		if r.Extra == nil {
+			r.Extra = map[string]any{}
+		}
+		if l.tenantID != "" {
+			r.Extra["tenant_id"] = l.tenantID
+		}
+		if l.connectorID != "" {
+			r.Extra["connector_id"] = l.connectorID
+		}
 	}
 	b, err := json.Marshal(r)
 	if err != nil {

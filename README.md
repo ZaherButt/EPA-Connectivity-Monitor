@@ -114,6 +114,53 @@ Each check is documented below as a self-contained reference:
 - **Key fields:** `extra.findings`, `extra.any_proxy_configured`, `extra.winhttp_proxy`, `extra.wininet_hklm_proxy`, `extra.wininet_hkcu_proxy`, `extra.wpad_dns_resolves`.
 - **Traffic generated:** none, except one DNS lookup for the bare name `wpad` per run.
 
+### `service_status`
+- **What it does:** queries the Windows Service Control Manager for a named service and reports whether it's currently in the `Running` state. Surfaces the configured start type (Automatic/Manual/Disabled), the last Win32 exit code, the run-as account, and (for running services) the PID + process uptime so you can see when the service last restarted.
+- **Why it matters:** if the EPA connector service dies at 03:00 and SCM hasn't auto-restarted it yet, the next interval's log entry records it instead of you finding out from a user ticket the next morning. Pair with `holdopen` and `tls` so you can correlate "service stopped" against "outbound traffic stopped working" in the same log.
+- **Configuration:** set `target` to the service name, e.g. `WAPCSvc` for the EPA connector. Use `sc query state= all` from an elevated prompt to discover the exact name on a given build of the connector.
+- **Healthy looks like:** `success: true`, `extra.state: "Running"`, increasing `extra.uptime_seconds` between log entries.
+- **Red flag:** `success: false` — service stopped, in StopPending/StartPending for more than one interval, or showing a non-zero `extra.win32_exit`. A sudden reset of `extra.uptime_seconds` to a small number means the service has just restarted.
+- **Key fields:** `extra.state`, `extra.start_type`, `extra.win32_exit`, `extra.pid`, `extra.uptime_seconds`, `extra.started_at`, `extra.run_as`, `extra.binary_path`, `extra.display_name`.
+- **Traffic generated:** none — pure local SCM IPC.
+
+### Snapshot mode (`--snapshot`)
+
+For a one-shot health check without writing the JSON log, use `--snapshot`:
+
+```cmd
+epa-connectivity-monitor.exe --config config.yaml --snapshot
+```
+
+Runs every configured check exactly once in parallel, prints a colour-coded
+PASS/FAIL summary table to stdout, and exits with code 0 (all passed) or 1
+(any failed). No log file is written. Useful for engineers who want a quick
+"is this box healthy right now?" answer before installing the service or
+while remoted into a customer connector.
+
+> Note: snapshot mode is **not** a substitute for continuous monitoring.
+> Most of the problems this tool exists to catch — intermittent latency
+> spikes, hold-open resets, asymmetric path failures — only show up over
+> time and require the long-running mode.
+
+### EPA connector identifiers in every log entry
+
+When run on a Windows host that has the EPA private network connector
+installed, the binary reads the connector's `tenant_id` and `connector_id`
+from the Windows registry once at startup and stamps them into the `extra`
+block of every JSON log record. Example:
+
+```json
+{"check":"servicebus-uk","type":"tls","success":true,"latency_ms":42.1,
+ "extra":{"tenant_id":"72f988bf-86f1-41af-91ab-2d7cd011db47",
+ "connector_id":"a1b2c3d4-...","tls_version":"TLS1.3"}}
+```
+
+This means a support engineer reading a shared log can immediately tell
+which tenant + connector instance produced it, without back-and-forth. If
+no connector is installed (e.g. running on a generic Windows box for
+testing) the IDs are simply omitted. See [`SECURITY.md`](SECURITY.md) for
+guidance on redacting these fields before sharing logs with third parties.
+
 ---
 
 ### Auto-tracert on failure
@@ -206,9 +253,10 @@ GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o epa-connectivity-monitor.
 
 ```
 epa-connectivity-monitor.exe --config config.yaml
-epa-connectivity-monitor.exe --config config.yaml --once     # one-shot run for testing
-epa-connectivity-monitor.exe --config config.yaml --dev      # dev mode: poll every 1s
-epa-connectivity-monitor.exe --print-config                  # validate config
+epa-connectivity-monitor.exe --config config.yaml --snapshot  # one-shot PASS/FAIL summary table, no log file
+epa-connectivity-monitor.exe --config config.yaml --once      # one-shot run, results still go to log file
+epa-connectivity-monitor.exe --config config.yaml --dev       # dev mode: poll every 1s
+epa-connectivity-monitor.exe --print-config                   # validate config
 ```
 
 ## Configuration

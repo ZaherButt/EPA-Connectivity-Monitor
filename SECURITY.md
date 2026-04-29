@@ -102,7 +102,7 @@ of data it contains are:
 
 - ❌ Usernames, UPNs, email addresses, principal names
 - ❌ Passwords, tokens, secrets, certificate private keys
-- ❌ Tenant IDs, Azure subscription IDs, app traffic, payload content
+- ❌ Azure subscription IDs, app traffic, payload content
 - ❌ Browsing history, file content, screen activity, anything from outside
   the configured probe targets
 
@@ -117,17 +117,33 @@ of data it contains are:
 | Latency / timing numbers | `47.10ms` | Not sensitive |
 | TLS server cert metadata (CN, Issuer, SAN, NotAfter) | `*.servicebus.windows.net` / `Microsoft RSA TLS CA 02` | Public certificate metadata served by every TLS endpoint |
 | Connection error strings from the OS | `connection reset by peer` | Not sensitive |
+| **EPA `tenant_id` (GUID)** stamped on every record | `extra.tenant_id: 72f988bf-…` | Customer-identifying — see caveat below |
+| **EPA `connector_id` (GUID)** stamped on every record | `extra.connector_id: a1b2c3d4-…` | Identifies a specific connector instance within the tenant |
+| Service status fields (when `service_status` enabled) | `extra.state: Running`, `extra.binary_path`, `extra.run_as` | Local Windows service metadata |
 
-**Two narrow caveats — review before sharing:**
+**Three narrow caveats — review before sharing:**
 
-1. **`tracert` output** is captured only on a failed check. The hop list can
+1. **`extra.tenant_id` and `extra.connector_id`** are present on **every**
+   log line when the binary is run on a host with the EPA connector
+   installed (read once at startup from the Windows registry). They are not
+   personal data, but they uniquely identify your tenant and the specific
+   connector instance to anyone you share the log with. To strip them
+   before sharing, use:
+   ```bash
+   jq -c 'del(.extra.tenant_id, .extra.connector_id)' \
+     epa-connectivity-monitor.log > epa-redacted.log
+   ```
+   On Windows without `jq`, the file is plain text — open in any editor and
+   replace both GUIDs with `<redacted>`.
+
+2. **`tracert` output** is captured only on a failed check. The hop list can
    include **internal router IPs and reverse-DNS names** along the path inside
    the customer network. Not personal PII, but some organisations classify
    internal network topology as sensitive infrastructure information. If that
    applies to you, scrub the `extra.tracert` arrays from failed entries before
    sharing the log externally.
 
-2. **`log_tail`** — disabled by default. If you enable it and point it at a
+3. **`log_tail`** — disabled by default. If you enable it and point it at a
    file (e.g. an EPA connector log) with a regex like `error|fail`, the
    matched lines are captured **verbatim** in the JSON log. Those lines could
    contain whatever the source application logs — tenant ID GUIDs, connector

@@ -67,6 +67,8 @@ func runCheck(ctx context.Context, c CheckConfig, pingCount int) Result {
 		fillLogTail(&res, c)
 	case "proxy_detect":
 		fillProxyDetect(&res, c)
+	case "service_status":
+		fillServiceStatus(&res, c)
 	default:
 		res.Error = "unknown check type"
 	}

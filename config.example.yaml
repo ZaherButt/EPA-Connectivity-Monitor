@@ -36,6 +36,17 @@ checks:
     interval: 1h
     tags: ["role:proxy-audit", "region:local"]
 
+  # ---- EPA connector service liveness (Windows-only) ----
+  # Continuously verifies the EPA connector Windows service is in the Running
+  # state. Uses local SCM IPC (no network traffic). The service name on
+  # current builds is "WAPCSvc"; older builds may use a different name —
+  # check `sc query state= all` from an elevated prompt to confirm.
+  - name: "epa-connector-service"
+    type: "service_status"
+    target: "WAPCSvc"
+    interval: 30s
+    tags: ["role:service-liveness", "region:local"]
+
   - name: "internet-ping-quad9"
     type: "internet_ping"
     target: "9.9.9.9"
