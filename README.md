@@ -27,8 +27,14 @@ EPA connector agent itself doesn't report:
 Each check is documented below as a self-contained reference:
 **What it does · Why it matters · Healthy looks like · Red flag · Key fields**.
 
-> **ICMP requires Administrator** on Windows (raw sockets).
-> All other check types work without elevation.
+> **ICMP elevation note (only relevant for interactive CLI testing).** When
+> installed as a Windows service (`epa-connectivity-monitor.exe -install`)
+> the service runs as **LocalSystem**, which has the rights ICMP needs — no
+> action required. If you're running the `.exe` directly from a `cmd` window
+> for testing, launch that `cmd` "as Administrator" or `gateway_ping` /
+> `internet_ping` will fail with permission errors. All other check types
+> (TCP, TLS, DNS, holdopen, host_health, log_tail, proxy_detect, tracert)
+> work fine unelevated either way.
 
 ---
 
