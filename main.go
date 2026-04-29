@@ -24,7 +24,7 @@ var (
 )
 
 const (
-	version    = "0.4.0"
+	version    = "0.4.1"
 	bannerLine = "EPA Connectivity Monitor v" + version + " - community diagnostic tool, not a Microsoft product. No warranty. See DISCLAIMER.md."
 )
 

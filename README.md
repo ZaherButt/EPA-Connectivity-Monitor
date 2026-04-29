@@ -32,9 +32,14 @@ Each check is documented below as a self-contained reference:
 > the service runs as **LocalSystem**, which has the rights ICMP needs — no
 > action required. If you're running the `.exe` directly from a `cmd` window
 > for testing, launch that `cmd` "as Administrator" or `gateway_ping` /
-> `internet_ping` will fail with permission errors. All other check types
-> (TCP, TLS, DNS, holdopen, host_health, log_tail, proxy_detect, tracert)
-> work fine unelevated either way.
+> `internet_ping` will be **automatically skipped** — the tool detects the
+> permission error on the first attempt, prints a one-time WARN to stderr
+> explaining how to enable ICMP, and emits subsequent ICMP results with
+> `success: true`, `detail: "ICMP skipped: process not elevated, raw sockets
+> unavailable"` and `extra.skipped: true` so the log isn't polluted with
+> false failures. All other check types (TCP, TLS, DNS, holdopen,
+> host_health, log_tail, proxy_detect, tracert) work fine unelevated either
+> way.
 
 ---
 

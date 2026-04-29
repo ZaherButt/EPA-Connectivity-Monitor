@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	probing "github.com/prometheus-community/pro-bing"
@@ -94,10 +97,60 @@ func msFloat(d time.Duration) float64 {
 	return float64(d) / float64(time.Millisecond)
 }
 
+// icmpDisabled is set sticky-true the first time ICMP fails with a privilege
+// error. After that, fillPing returns immediately with a "skipped" result so
+// we don't pollute the log with a continuous failure stream when the binary
+// is being run from a non-elevated cmd window. The warning line is emitted
+// exactly once, on the first detection.
+var (
+	icmpDisabled atomic.Bool
+	icmpWarnOnce sync.Once
+)
+
+func isPermissionError(s string) bool {
+	s = strings.ToLower(s)
+	return strings.Contains(s, "permission denied") ||
+		strings.Contains(s, "operation not permitted") ||
+		strings.Contains(s, "access permissions") ||
+		strings.Contains(s, "10013") ||
+		strings.Contains(s, "forbidden") ||
+		strings.Contains(s, "not permitted")
+}
+
+func markICMPDisabledOnce(reason string) {
+	icmpDisabled.Store(true)
+	icmpWarnOnce.Do(func() {
+		fmt.Fprintf(os.Stderr,
+			"WARN: ICMP unavailable (%s). gateway_ping/internet_ping checks will "+
+				"be reported as 'skipped' in the log instead of 'failed'. To enable "+
+				"ICMP, run elevated (right-click cmd -> 'Run as Administrator') or "+
+				"install as a Windows service (epa-connectivity-monitor.exe -install) "+
+				"which runs as LocalSystem.\n", reason)
+	})
+}
+
+func fillPingSkipped(res *Result, target string) {
+	res.Target = target
+	res.Success = true
+	res.Detail = "ICMP skipped: process not elevated, raw sockets unavailable"
+	res.Extra = map[string]any{
+		"skipped":        true,
+		"skipped_reason": "icmp_no_admin",
+	}
+}
+
 func fillPing(res *Result, target string, timeout time.Duration, count int) {
+	if icmpDisabled.Load() {
+		fillPingSkipped(res, target)
+		return
+	}
 	pinger, err := probing.NewPinger(target)
 	if err != nil {
 		res.Error = fmt.Sprintf("new pinger: %v", err)
+		if isPermissionError(err.Error()) {
+			markICMPDisabledOnce(err.Error())
+			fillPingSkipped(res, target)
+		}
 		return
 	}
 	// On Windows, ICMP requires privileged (raw socket) mode and admin rights.
@@ -108,6 +161,11 @@ func fillPing(res *Result, target string, timeout time.Duration, count int) {
 	pinger.Timeout = timeout
 	pinger.Interval = 200 * time.Millisecond
 	if err := pinger.Run(); err != nil {
+		if isPermissionError(err.Error()) {
+			markICMPDisabledOnce(err.Error())
+			fillPingSkipped(res, target)
+			return
+		}
 		res.Error = fmt.Sprintf("ping run: %v", err)
 		return
 	}
