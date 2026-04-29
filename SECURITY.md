@@ -118,23 +118,21 @@ of data it contains are:
 | TLS server cert metadata (CN, Issuer, SAN, NotAfter) | `*.servicebus.windows.net` / `Microsoft RSA TLS CA 02` | Public certificate metadata served by every TLS endpoint |
 | Connection error strings from the OS | `connection reset by peer` | Not sensitive |
 | **EPA `tenant_id` (GUID)** stamped on every record | `extra.tenant_id: 72f988bf-…` | Customer-identifying — see caveat below |
-| **EPA `connector_id` (GUID)** stamped on every record | `extra.connector_id: a1b2c3d4-…` | Identifies a specific connector instance within the tenant |
 | Service status fields (when `service_status` enabled) | `extra.state: Running`, `extra.binary_path`, `extra.run_as` | Local Windows service metadata |
 
 **Three narrow caveats — review before sharing:**
 
-1. **`extra.tenant_id` and `extra.connector_id`** are present on **every**
-   log line when the binary is run on a host with the EPA connector
-   installed (read once at startup from the Windows registry). They are not
-   personal data, but they uniquely identify your tenant and the specific
-   connector instance to anyone you share the log with. To strip them
-   before sharing, use:
+1. **`extra.tenant_id`** is present on **every** log line when the binary is
+   run on a host with the EPA connector installed (read once at startup from
+   the connector's on-disk endpoints config). It is not personal data, but it
+   uniquely identifies your Entra tenant to anyone you share the log with.
+   To strip it before sharing, use:
    ```bash
-   jq -c 'del(.extra.tenant_id, .extra.connector_id)' \
+   jq -c 'del(.extra.tenant_id)' \
      epa-connectivity-monitor.log > epa-redacted.log
    ```
    On Windows without `jq`, the file is plain text — open in any editor and
-   replace both GUIDs with `<redacted>`.
+   replace the GUID with `<redacted>`.
 
 2. **`tracert` output** is captured only on a failed check. The hop list can
    include **internal router IPs and reverse-DNS names** along the path inside

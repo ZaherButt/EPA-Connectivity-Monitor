@@ -23,10 +23,9 @@ import (
 func runSnapshot(cfg *Config) int {
 	color := stdoutIsTTY()
 
-	if connectorTenantID != "" || connectorConnectorID != "" {
+	if connectorTenantID != "" {
 		fmt.Printf("Tenant ID    : %s\n", connectorTenantID)
-		fmt.Printf("Connector ID : %s\n", connectorConnectorID)
-		fmt.Printf("Source       : %s\n", connectorIDSource)
+		fmt.Printf("Source       : %s\n", tenantIDSource)
 		fmt.Println()
 	}
 

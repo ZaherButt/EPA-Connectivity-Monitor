@@ -142,24 +142,33 @@ while remoted into a customer connector.
 > spikes, hold-open resets, asymmetric path failures — only show up over
 > time and require the long-running mode.
 
-### EPA connector identifiers in every log entry
+### EPA connector tenant_id in every log entry
 
-When run on a Windows host that has the EPA private network connector
-installed, the binary reads the connector's `tenant_id` and `connector_id`
-from the Windows registry once at startup and stamps them into the `extra`
-block of every JSON log record. Example:
+When run on a Windows host that has the Microsoft Entra private network
+connector installed, the binary reads the `tenant_id` from the connector's
+on-disk config (`%ProgramData%\Microsoft\Microsoft Entra private network connector\Endpoints\endpoints.txt`)
+once at startup and stamps it into the `extra` block of every JSON log
+record. Example:
 
 ```json
 {"check":"servicebus-uk","type":"tls","success":true,"latency_ms":42.1,
  "extra":{"tenant_id":"72f988bf-86f1-41af-91ab-2d7cd011db47",
- "connector_id":"a1b2c3d4-...","tls_version":"TLS1.3"}}
+ "tls_version":"TLS1.3"}}
 ```
 
 This means a support engineer reading a shared log can immediately tell
-which tenant + connector instance produced it, without back-and-forth. If
-no connector is installed (e.g. running on a generic Windows box for
-testing) the IDs are simply omitted. See [`SECURITY.md`](SECURITY.md) for
-guidance on redacting these fields before sharing logs with third parties.
+which tenant produced it, without back-and-forth. If no connector is
+installed (e.g. running on a generic Windows box for testing) the field is
+simply omitted. See [`SECURITY.md`](SECURITY.md) for guidance on redacting
+this field before sharing logs with third parties.
+
+> Note: there is intentionally no `connector_id` field. The connector ID is
+> server-assigned by Azure during bootstrap and not stored anywhere on the
+> connector host (verified by ProcMon trace of Microsoft's
+> ConnectorDiagnosticsTool). Replicating Azure's bootstrap call would
+> require client-cert TLS into Microsoft endpoints with the connector's
+> private key — out of scope for a passive diagnostic tool. The `tenant_id`
+> alone is sufficient for cross-host log correlation.
 
 ---
 

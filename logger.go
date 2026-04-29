@@ -39,7 +39,6 @@ type Logger struct {
 	diskFull    bool
 	lastWarnAt  time.Time
 	tenantID    string
-	connectorID string
 }
 
 const (
@@ -71,7 +70,6 @@ func NewLogger(cfg *Config) *Logger {
 		logPath:     cfg.LogFile,
 		minFreeMB:   uint64(cfg.LogMinFreeDiskMB),
 		tenantID:    connectorTenantID,
-		connectorID: connectorConnectorID,
 	}
 }
 
@@ -112,16 +110,11 @@ func (l *Logger) Write(r Result) {
 	if r.Timestamp == "" {
 		r.Timestamp = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	if l.tenantID != "" || l.connectorID != "" {
+	if l.tenantID != "" {
 		if r.Extra == nil {
 			r.Extra = map[string]any{}
 		}
-		if l.tenantID != "" {
-			r.Extra["tenant_id"] = l.tenantID
-		}
-		if l.connectorID != "" {
-			r.Extra["connector_id"] = l.connectorID
-		}
+		r.Extra["tenant_id"] = l.tenantID
 	}
 	b, err := json.Marshal(r)
 	if err != nil {

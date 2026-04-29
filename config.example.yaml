@@ -305,11 +305,16 @@ checks:
     tags: ["role:host-health", "region:local"]
 
   # Tail the connector's own trace log and report any new ERROR/WARN lines.
-  # Adjust log_path to point at your connector log file. Default pattern is
+  # The connector writes rotating files with a GUID suffix - we use a glob
+  # pattern and the tool tails the newest matching file by mtime, automatically
+  # following rotations. Default pattern is
   # "(?i)error|warn|fail|exception|disconnect"; override with `pattern:`.
+  #
+  # Note: Windows paths use single quotes to keep backslashes literal. In
+  # YAML double-quoted strings you'd have to escape every `\` as `\\`.
   - name: "connector-log-watch"
     type: "log_tail"
-    log_path: "C:\\Program Files\\Microsoft Entra Private Network Connector\\Logs\\connector_logs.log"
+    log_path: 'C:\ProgramData\Microsoft\Microsoft Entra private network connector\Trace\MicrosoftEntraPrivateNetworkConnector_*.log'
     pattern: "(?i)error|disconnect|reset|timeout"
     interval: 60s
     tags: ["role:log-watch", "region:local"]

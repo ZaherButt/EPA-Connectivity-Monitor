@@ -25,19 +25,24 @@ var (
 )
 
 const (
-	version    = "0.5.0"
+	version    = "0.5.2"
 	bannerLine = "EPA Connectivity Monitor v" + version + " - community diagnostic tool, not a Microsoft product. No warranty. See DISCLAIMER.md."
 )
 
-// connectorTenantID and connectorConnectorID are populated once at process
-// startup from the EPA connector's registry keys (Windows only). When
-// non-empty they are stamped into every log record's "extra" block by the
-// logger, so support engineers reading a shared log can immediately tell
-// which tenant + connector instance produced it without back-and-forth.
+// connectorTenantID is populated once at process startup from the EPA
+// connector's on-disk endpoints.txt (Windows only). When non-empty it is
+// stamped into every log record's "extra" block by the logger, so support
+// engineers reading a shared log can immediately tell which tenant produced
+// it without back-and-forth.
+//
+// Note: there is intentionally no connector_id field. The connector ID is
+// not stored locally — it's server-assigned and only obtainable via an
+// authenticated bootstrap call into Azure (verified by ProcMon trace of
+// Microsoft's ConnectorDiagnosticsTool, 29 Apr 2026). The tenant_id alone is
+// sufficient for cross-host log correlation, which is the whole point.
 var (
-	connectorTenantID    string
-	connectorConnectorID string
-	connectorIDSource    string
+	connectorTenantID  string
+	tenantIDSource     string
 )
 
 func main() {
@@ -92,12 +97,12 @@ func main() {
 	// Load EPA connector identifiers (Windows-only; no-op stub elsewhere).
 	// Populated globals are picked up by NewLogger and stamped on every
 	// log entry's extra block.
-	connectorTenantID, connectorConnectorID, connectorIDSource = loadConnectorIDs()
-	if connectorTenantID != "" || connectorConnectorID != "" {
-		fmt.Fprintf(os.Stderr, "EPA connector detected: tenant_id=%s connector_id=%s (source: %s)\n",
-			connectorTenantID, connectorConnectorID, connectorIDSource)
+	connectorTenantID, tenantIDSource = loadTenantID()
+	if connectorTenantID != "" {
+		fmt.Fprintf(os.Stderr, "EPA connector detected: tenant_id=%s (source: %s)\n",
+			connectorTenantID, tenantIDSource)
 	} else {
-		fmt.Fprintln(os.Stderr, "EPA connector identifiers not found in registry (running on a non-connector host or registry path differs); log entries will omit tenant_id/connector_id.")
+		fmt.Fprintln(os.Stderr, "EPA connector tenant_id not found (running on a non-connector host or connector files moved); log entries will omit tenant_id.")
 	}
 
 	if *flagSnapshot {
