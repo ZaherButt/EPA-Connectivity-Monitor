@@ -87,6 +87,14 @@ Each check is documented below as a self-contained reference:
 - **Red flag:** burst of matches aligned with a user-reported outage window → root cause is on the connector itself, not the network.
 - **Key fields:** `extra.line`, `extra.matched_pattern`, `extra.file_offset`.
 
+### `proxy_detect`
+- **What it does:** read-only snapshot of every place a Windows host might be configured to use an HTTP/HTTPS proxy: `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` env vars, `netsh winhttp show proxy`, `HKLM` + `HKCU` Internet Settings (proxy server + AutoConfigURL/PAC), and a single DNS lookup for `wpad` to detect WPAD auto-discovery.
+- **Why it matters:** EPA traffic going through an undeclared proxy is a top-3 silent cause of "feels slow" tickets. A transparent forwarding proxy can sit invisibly between the connector and Microsoft endpoints. Pair this with `tls`/`tls_resume`: those flag `chain_known_microsoft_root: false` when a proxy is *actively decrypting* TLS — `proxy_detect` shows you whether one is *configured* in the first place.
+- **Healthy looks like:** `extra.findings: []`, `extra.any_proxy_configured: false`, all five sources clean.
+- **Red flag:** any non-empty `extra.findings` array — `env_proxy`, `winhttp`, `wininet`, `pac_url`, or `wpad`. Cross-reference with the cert-chain results from your `tls` checks to determine whether the proxy is just routing or also intercepting.
+- **Key fields:** `extra.findings`, `extra.any_proxy_configured`, `extra.winhttp_proxy`, `extra.wininet_hklm_proxy`, `extra.wininet_hkcu_proxy`, `extra.wpad_dns_resolves`.
+- **Traffic generated:** none, except one DNS lookup for the bare name `wpad` per run.
+
 ---
 
 ### Auto-tracert on failure

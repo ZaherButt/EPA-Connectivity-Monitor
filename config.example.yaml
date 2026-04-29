@@ -26,6 +26,16 @@ checks:
     interval: 30s
     tags: ["role:gateway", "region:local"]
 
+  # ---- Proxy / TLS-inspection detection (read-only host inspection) ----
+  # Snapshots HTTP_PROXY / HTTPS_PROXY env vars, WinHTTP, WinINET (HKLM+HKCU),
+  # and WPAD DNS auto-discovery. Generates one DNS query for "wpad" per run;
+  # otherwise no traffic. Pair with the tls/tls_resume checks: those will flag
+  # chain_known_microsoft_root=false if a proxy is actively decrypting TLS.
+  - name: "proxy-detect"
+    type: "proxy_detect"
+    interval: 1h
+    tags: ["role:proxy-audit", "region:local"]
+
   - name: "internet-ping-quad9"
     type: "internet_ping"
     target: "9.9.9.9"

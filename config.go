@@ -108,11 +108,11 @@ func LoadConfig(path string) (*Config, error) {
 		}
 		switch c.Checks[i].Type {
 		case "gateway_ping", "internet_ping", "tcp443", "dns_a",
-			"tls", "tls_resume", "holdopen", "host_health", "log_tail":
+			"tls", "tls_resume", "holdopen", "host_health", "log_tail", "proxy_detect":
 		default:
 			return nil, fmt.Errorf("check %q: unknown type %q", c.Checks[i].Name, c.Checks[i].Type)
 		}
-		needsTarget := c.Checks[i].Type != "gateway_ping" && c.Checks[i].Type != "host_health" && c.Checks[i].Type != "log_tail"
+		needsTarget := c.Checks[i].Type != "gateway_ping" && c.Checks[i].Type != "host_health" && c.Checks[i].Type != "log_tail" && c.Checks[i].Type != "proxy_detect"
 		if needsTarget && c.Checks[i].Target == "" {
 			return nil, fmt.Errorf("check %q: target is required for type %s", c.Checks[i].Name, c.Checks[i].Type)
 		}

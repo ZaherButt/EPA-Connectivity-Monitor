@@ -48,6 +48,7 @@ Every check is documented in `README.md`. Briefly, the only outbound traffic is:
 | `holdopen`      | TCP+TLS to `target:port`, held idle for `hold_for`       |
 | `host_health`   | None. Reads only local OS counters.                      |
 | `log_tail`      | None. Reads only the configured local file.              |
+| `proxy_detect`  | One DNS lookup for the bare name `wpad`. No traffic to any proxy. |
 | `trace_on_failure` | Spawns `tracert.exe` against the failing target's IP  |
 
 Use `epa-connectivity-monitor.exe --print-config` to print the full effective
@@ -76,6 +77,10 @@ The log contains:
 - for `host_health`: aggregate CPU%, free memory, TCP connection counts, no
   per-process or per-user information
 - for `log_tail`: lines from a file path **you configured** that match a regex
+- for `proxy_detect`: snapshot of local proxy configuration from env vars,
+  `netsh winhttp show proxy` output, `Software\Microsoft\Windows\CurrentVersion\Internet Settings`
+  registry values (per-machine and per-user), and whether the bare DNS name
+  `wpad` resolves. All read-only; no proxy is ever contacted.
 
 The log does **not** contain:
 
